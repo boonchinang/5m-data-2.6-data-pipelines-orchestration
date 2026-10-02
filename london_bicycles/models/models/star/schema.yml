@@ -1,49 +1,84 @@
 version: 2
 models:
+# Station Dimension
   - name: dim_station
-    description: "Dimension table containing London Bicycle docking stations metadata."
+    description: "Dimension table containing London Bicycle docking stations."
     columns:
       - name: station_id
         description: "Primary key for docking station."
-        tests:
-          - unique
+        tests:        # test against duplicate and null values
+          - unique          
           - not_null
+
   - name: latitude
     description: "Station latitude coordinate."
-    tests:
+    tests:            # test against null values
           - not_null
           - dbt_expectations.expect_column_values_to_be_between:
               min_value: 51.3000
               max_value: 51.7000
 
+  - name: longitude
+    description: "Station longitude coordinate."
+    tests:            # test against null values  
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: -0.5000
+              max_value: 0.3000
+
+# Date Dimension
   - name: dim_date
     description: "Date dimension table for time-based aggregation."
     columns:
-      - name: date_id
-        description: "Surrogate integer date key (YYYYMMDD)."
-        tests:
+      - name: date_id       
+        description: "Primary key in integer format (YYYYMMDD)."
+        tests:          # test against duplicate and null values
           - unique
           - not_null
 
+# Trips Fact Table
   - name: fact_trips
-    description: "Central fact table tracking individual cycle hire transactions."
+    description: "Fact table tracking individual cycle hire transactions."
+    tests:
+      # Test on End timestamp must be greater than or equal to Start timestamp
+        - dbt_expectations.expect_column_pair_values_A_to_be_greater_than_B:
+            column_A: end_date
+            column_B: start_date
+            or_equal: true
+    
     columns:
       - name: rental_id
         description: "Primary key for trip transaction."
-        tests:
+        tests:        # test against duplicate and null values
           - unique
           - not_null
+
+    # Reference Checks (Foreign Keys)
       - name: start_station_id
         tests:
           - relationships:
               to: ref('dim_station')
               field: station_id
+
       - name: start_date_id
         tests:
           - relationships:
               to: ref('dim_date')
               field: date_id
-      - name: duration_seconds
+
+      - name: end_date_id
+        description: "Foreign key referencing dim_date.date_id."
         tests:
-          - dbt_utils.expression_is_true:
-              expression: "> 0"
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+
+    # Rental duration checks
+      - name: duration_seconds
+        description: "Rental duration in seconds."
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 60
+              max_value: 86400    # 24 hours
