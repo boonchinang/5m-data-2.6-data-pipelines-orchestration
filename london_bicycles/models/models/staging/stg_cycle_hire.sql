@@ -15,6 +15,8 @@ SELECT
     ROUND(duration / 60.0, 2) AS duration_minutes
 FROM raw_hire
 WHERE rental_id IS NOT NULL 
-  AND duration > 0
+  AND duration >= 60                                 -- Filter out < 1 minute accidental docks
+  AND duration <= 86400                              -- Filter out > 24 hour lost/unreturned bikes
+  AND TIMESTAMP(end_date) >= TIMESTAMP(start_date)   -- Filters out corrupted timestamp records
   AND start_station_id IN (SELECT station_id FROM valid_stations)
   AND end_station_id IN (SELECT station_id FROM valid_stations)
