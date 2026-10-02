@@ -1,0 +1,42 @@
+version: 2
+models:
+  - name: dim_station
+    description: "Dimension table containing London Bicycle docking stations metadata."
+    columns:
+      - name: station_id
+        description: "Primary key for docking station."
+        tests:
+          - unique
+          - not_null
+
+  - name: dim_date
+    description: "Date dimension table for time-based aggregation."
+    columns:
+      - name: date_id
+        description: "Surrogate integer date key (YYYYMMDD)."
+        tests:
+          - unique
+          - not_null
+
+  - name: fact_trips
+    description: "Central fact table tracking individual cycle hire transactions."
+    columns:
+      - name: rental_id
+        description: "Primary key for trip transaction."
+        tests:
+          - unique
+          - not_null
+      - name: start_station_id
+        tests:
+          - relationships:
+              to: ref('dim_station')
+              field: station_id
+      - name: start_date_id
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date_id
+      - name: duration_seconds
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "> 0"
